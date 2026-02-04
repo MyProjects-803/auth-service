@@ -1,43 +1,57 @@
 package com.job.service;
 
+import com.job.config.JwtUtil;
 import com.job.entity.RoleEntity;
 import com.job.entity.UserEntity;
+import com.job.exception.UserAlreadyExistException;
+import com.job.repo.RoleRepo;
 import com.job.repo.UserRepo;
-import com.job.security.JwtUtil;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 public class AuthService {
 
-    @Autowired
-    private UserRepo userRepository;
+    private final UserRepo userRepository;
+    private final RoleRepo roleRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtUtil jwtUtil;
 
-    @Autowired
-    private PasswordEncoder passwordEncoder;
+    public void register(String username, String password, String roleName) {
 
-    @Autowired
-    private JwtUtil jwtUtil;
+        if (userRepository.existsByUsername(username)) {
+            throw new UserAlreadyExistException("Username already exists");
+        }
+
+        RoleEntity role = roleRepository.findByName(roleName)
+                .orElseThrow(() -> new RuntimeException("Role not found"));
+        UserEntity user = new UserEntity();
+        user.setUsername(username);
+        user.setPassword(passwordEncoder.encode(password));
+        user.setRoles(Set.of(role));
+
+        userRepository.save(user);
+    }
 
     public String login(String username, String password) {
 
         UserEntity user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new RuntimeException("Invalid credentials"));
 
         if (!passwordEncoder.matches(password, user.getPassword())) {
             throw new RuntimeException("Invalid credentials");
         }
 
-        Set<String> roles = user.getRoles()
+        List<String> roles = user.getRoles()
                 .stream()
                 .map(RoleEntity::getName)
-                .collect(Collectors.toSet());
+                .toList();
 
         return jwtUtil.generateToken(username, roles);
     }
 }
-
