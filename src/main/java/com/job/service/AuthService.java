@@ -3,6 +3,8 @@ package com.job.service;
 import com.job.config.JwtUtil;
 import com.job.entity.RoleEntity;
 import com.job.entity.UserEntity;
+import com.job.exception.InvalidCredentialException;
+import com.job.exception.RoleNotFoundException;
 import com.job.exception.UserAlreadyExistException;
 import com.job.repo.RoleRepo;
 import com.job.repo.UserRepo;
@@ -29,7 +31,7 @@ public class AuthService {
         }
 
         RoleEntity role = roleRepository.findByName(roleName)
-                .orElseThrow(() -> new RuntimeException("Role not found"));
+                .orElseThrow(() -> new RoleNotFoundException("Role not found"));
         UserEntity user = new UserEntity();
         user.setUsername(username);
         user.setPassword(passwordEncoder.encode(password));
@@ -41,10 +43,10 @@ public class AuthService {
     public String login(String username, String password) {
 
         UserEntity user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("Invalid credentials"));
+                .orElseThrow(() -> new InvalidCredentialException("Invalid credentials"));
 
         if (!passwordEncoder.matches(password, user.getPassword())) {
-            throw new RuntimeException("Invalid credentials");
+            throw new InvalidCredentialException("Invalid credentials");
         }
 
         List<String> roles = user.getRoles()
